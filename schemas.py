@@ -1,48 +1,53 @@
 """
-Database Schemas
+Database Schemas for Classroom Scheduler
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model corresponds to a collection (lowercased class name) in MongoDB.
 """
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, List, Literal, Dict, Any
+from datetime import datetime
 
-from pydantic import BaseModel, Field
-from typing import Optional
-
-# Example schemas (replace with your own):
+Role = Literal["student", "teacher", "admin"]
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    name: str
+    email: EmailStr
+    password_hash: str
+    role: Role = "student"
+    is_verified: bool = True  # teachers require admin verification; students default True
+    is_active: bool = True
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Session(BaseModel):
+    user_id: str
+    token: str
+    created_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Event(BaseModel):
+    title: str
+    description: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    created_by: str  # teacher id
+    audience: Literal["all_students", "specific"] = "all_students"
+    audience_ids: List[str] = []  # when audience == specific -> list of student user_ids
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Task(BaseModel):
+    title: str
+    description: Optional[str] = None
+    due_date: datetime
+    created_by: str  # teacher id
+    audience: Literal["all_students", "specific"] = "all_students"
+    audience_ids: List[str] = []
+    notified: bool = False  # whether overdue notification was sent
+
+class Notification(BaseModel):
+    user_id: str
+    title: str
+    message: str
+    kind: Literal["info", "deadline", "system"] = "info"
+    is_read: bool = False
+    related_type: Optional[Literal["task", "event"]] = None
+    related_id: Optional[str] = None
+
+# The Flames database viewer will read these via the /schema endpoint in main.py
